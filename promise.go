@@ -9,19 +9,21 @@ type Param reflect.Value
 type Params []Param
 
 type Promise struct {
-	fn     Value
-	params []reflect.Value
+	f chan Params
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Q
 ///////////////////////////////////////////////////////////////////////////////////////
 func Q(fn interface{}) *Promise {
+	future := make(chan Params)
 
-	v := reflect.ValueOf(fn)
-	out := v.Call(p.params)
-	p := &Promise{fn: v, params: out}
-	return p
+	go func() {
+		v := reflect.ValueOf(fn)
+		future <- v.Call()
+	}()
+
+	return &Promise{f: future}
 }
 
 //func Defer(f func() interface{}) *Promise {
