@@ -1,7 +1,7 @@
 package promise
 
 import (
-	//"fmt"
+	"fmt"
 	"reflect"
 )
 
@@ -13,108 +13,28 @@ type Promise struct {
 	ef ErrorFuture
 }
 
-func (p *Promise) dddd(fn interface{}) {
-	v := reflect.ValueOf(fn)
-	p.pf <- v.Call([]reflect.Value{})
-	close(p.pf)
-
-	p.ef <- nil
-	close(p.ef)
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////
-// Q
+// makePromise
 ///////////////////////////////////////////////////////////////////////////////////////
-func Q(fn interface{}) *Promise {
+func makePromise() *Promise {
 	pr := &Promise{}
 	pr.pf = make(ParamFuture)
 	pr.ef = make(ErrorFuture)
-
-	go pr.dddd(fn)
-
 	return pr
 }
 
-//func Defer(f func() interface{}) *Promise {
-//	return &Promise{f: f}
-//}
-
-//func (p *Promise) Force() interface{} {
-//	p.once.Do(func() { p.value = p.f() })
-//	return p.value
-//}
-
 ///////////////////////////////////////////////////////////////////////////////////////
-// call
+// send
 ///////////////////////////////////////////////////////////////////////////////////////
-//func (p *Promise) call() ([]reflect.Value, error) {
-
-//	fn := p.fn
-//fnType := reflect.TypeOf(fn)
-
-//if len(in) != fnType.NumIn() {
-//		return nil, fmt.Errorf("dfgjkl")
-//}
-
-//t.NumOut()
-//t.In(i) // type of input variable i
-//t.Out(i)
-
-//	out := fn.Call(p.params)
-//	return out, nil
-//}
-/*
-///////////////////////////////////////////////////////////////////////////////////////
-// Then
-///////////////////////////////////////////////////////////////////////////////////////
-func (p *Promise) Then(fns ...interface{}) *Promise {
-	nPf := make(ParamFuture)
-	nEf := make(ErrorFuture)
-
-	go func(pf ParamFuture, ef ErrorFuture, fns []interface{}) {
-		// wait on result and error from prev promise
-		res := <-pf
-		err := <-ef
-
-		close(pf)
-		close(ef)
-
-		if err != nil {
-			nEf <- nil
-			nPf <- []reflect.Value{}
-			return
-		}
-
-		// if we have only one Then func, map prev promise outputs to input
-		if len(fns) == 1 {
-			v := reflect.ValueOf(fns[0])
-			if len(res) != v.Type().NumIn() {
-				// outputs count from prev promise func mismatch current funcs inputs count
-				nPf <- []reflect.Value{}
-				nEf <- fmt.Errorf("Function argument count mismatch")
-				return
-			}
-
-			nEf <- nil
-			nPf <- v.Call(res)
-			return
-		}
-
-	}(p.pf, p.ef, fns)
-
-	newP := &Promise{pf: nPf, ef: nEf}
-	return newP
+func (p *Promise) send(out []reflect.Value, err error) {
+	p.pf <- out
+	p.ef <- err
 }
-*/
-///////////////////////////////////////////////////////////////////////////////////////
-// Do
-///////////////////////////////////////////////////////////////////////////////////////
-func (p *Promise) Done() (interface{}, error) {
 
-	var (
-		err error
-		out interface{}
-	)
+///////////////////////////////////////////////////////////////////////////////////////
+// receive
+///////////////////////////////////////////////////////////////////////////////////////
+func (p *Promise) receive() (out []reflect.Value, err error) {
 
 	outR := false
 	errR := false
@@ -127,6 +47,78 @@ func (p *Promise) Done() (interface{}, error) {
 			outR = true
 		}
 	}
+	return
+}
 
-	return out, err
+///////////////////////////////////////////////////////////////////////////////////////
+// invoke
+///////////////////////////////////////////////////////////////////////////////////////
+func (p *Promise) invoke(fn interface{}, in []reflect.Value) {
+	v := reflect.ValueOf(fn)
+	t := v.Type()
+
+	//check arguments count equal
+	if len(in) != t.NumIn() {
+		p.send([]reflect.Value{}, fmt.Errorf("Function argument count mismatch"))
+		return
+	}
+	//check arguments types equal
+	for idx, inVal := range in {
+		if inVal.Type() != t.In(idx) {
+			p.send([]reflect.Value{}, fmt.Errorf("Function argument type mismatch"))
+			return
+		}
+	}
+
+	p.send(v.Call(in), nil)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Q
+///////////////////////////////////////////////////////////////////////////////////////
+func Q(fn interface{}) *Promise {
+	pr := makePromise()
+	go pr.invoke(fn, []reflect.Value{})
+	return pr
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Then
+///////////////////////////////////////////////////////////////////////////////////////
+func (p *Promise) Then(fns ...interface{}) *Promise {
+	newP := makePromise()
+
+	go func() {
+		// wait on result and error from prev promise
+		out, err := p.receive()
+
+		// if we have an internal error, bubble it through, send the prev output and return.
+		if err != nil {
+			newP.send(out, err)
+			return
+		}
+
+		// if we have only one Then func, map prev promise outputs to input
+		if len(fns) == 1 {
+			newP.invoke(fns[0], out)
+			return
+		}
+	}()
+
+	return newP
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Done
+///////////////////////////////////////////////////////////////////////////////////////
+func (p *Promise) Done() ([]interface{}, error) {
+
+	out, err := p.receive()
+	res := make([]interface{}, len(out))
+
+	for idx, val := range out {
+		res[idx] = val.Interface()
+	}
+
+	return res, err
 }
