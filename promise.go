@@ -5,25 +5,34 @@ import (
 	"reflect"
 )
 
-type Param reflect.Value
-type Params []Param
+type ParamFuture chan []reflect.Value
+type ErrorFuture chan error
 
 type Promise struct {
-	f chan Params
+	pf ParamFuture
+	ef ErrorFuture
+}
+
+func (p *Promise) dddd(fn interface{}) {
+	v := reflect.ValueOf(fn)
+	p.pf <- v.Call([]reflect.Value{})
+	close(p.pf)
+
+	p.ef <- nil
+	close(p.ef)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Q
 ///////////////////////////////////////////////////////////////////////////////////////
 func Q(fn interface{}) *Promise {
-	future := make(chan Params)
+	pr := &Promise{}
+	pr.pf = make(ParamFuture)
+	pr.ef = make(ErrorFuture)
 
-	go func() {
-		v := reflect.ValueOf(fn)
-		future <- v.Call()
-	}()
+	go pr.dddd(fn)
 
-	return &Promise{f: future}
+	return pr
 }
 
 //func Defer(f func() interface{}) *Promise {
@@ -38,54 +47,86 @@ func Q(fn interface{}) *Promise {
 ///////////////////////////////////////////////////////////////////////////////////////
 // call
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *Promise) call() ([]reflect.Value, error) {
+//func (p *Promise) call() ([]reflect.Value, error) {
 
-	fn := p.fn
-	//fnType := reflect.TypeOf(fn)
+//	fn := p.fn
+//fnType := reflect.TypeOf(fn)
 
-	//if len(in) != fnType.NumIn() {
-	//		return nil, fmt.Errorf("dfgjkl")
-	//}
+//if len(in) != fnType.NumIn() {
+//		return nil, fmt.Errorf("dfgjkl")
+//}
 
-	//t.NumOut()
-	//t.In(i) // type of input variable i
-	//t.Out(i)
+//t.NumOut()
+//t.In(i) // type of input variable i
+//t.Out(i)
 
-	out := fn.Call(p.params)
-	return out, nil
-}
-
+//	out := fn.Call(p.params)
+//	return out, nil
+//}
+/*
 ///////////////////////////////////////////////////////////////////////////////////////
 // Then
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promise) Then(fns ...interface{}) *Promise {
+	nPf := make(ParamFuture)
+	nEf := make(ErrorFuture)
 
-	if len(fns) == 1 {
+	go func(pf ParamFuture, ef ErrorFuture, fns []interface{}) {
+		// wait on result and error from prev promise
+		res := <-pf
+		err := <-ef
 
-	}
+		close(pf)
+		close(ef)
 
-	newP := &Promise{fn: fn, err: p.err}
+		if err != nil {
+			nEf <- nil
+			nPf <- []reflect.Value{}
+			return
+		}
 
-	if p.err != nil {
-		return newP
-	}
+		// if we have only one Then func, map prev promise outputs to input
+		if len(fns) == 1 {
+			v := reflect.ValueOf(fns[0])
+			if len(res) != v.Type().NumIn() {
+				// outputs count from prev promise func mismatch current funcs inputs count
+				nPf <- []reflect.Value{}
+				nEf <- fmt.Errorf("Function argument count mismatch")
+				return
+			}
 
-	out, err := p.call()
-	newP.params = out
-	newP.err = err
+			nEf <- nil
+			nPf <- v.Call(res)
+			return
+		}
 
+	}(p.pf, p.ef, fns)
+
+	newP := &Promise{pf: nPf, ef: nEf}
 	return newP
 }
-
+*/
 ///////////////////////////////////////////////////////////////////////////////////////
 // Do
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *Promise) Do() (interface{}, error) {
+func (p *Promise) Done() (interface{}, error) {
 
-	if p.err != nil {
-		return nil, p.err
+	var (
+		err error
+		out interface{}
+	)
+
+	outR := false
+	errR := false
+
+	for !errR || !outR {
+		select {
+		case err = <-p.ef:
+			errR = true
+		case out = <-p.pf:
+			outR = true
+		}
 	}
 
-	out, err := p.call()
 	return out, err
 }

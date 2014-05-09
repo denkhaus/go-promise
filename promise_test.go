@@ -2,17 +2,40 @@ package promise
 
 import (
 	"bitbucket.org/mendsley/tcgl/asserts"
-	"fmt"
+	//"fmt"
 	"testing"
 )
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// TestBasicChainWithError
+// TestReturnValueIsNil
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func TestBasicChainWithError(t *testing.T) {
+func TestReturnValueIsNil(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
-	res := Q(func() (string, error) {
+	res, err := Q(func() {}).Done()
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Nil(res, "Return value doesn't match.")
+}
+
+/*
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestReturnValueIsEqual
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestReturnValueIsEqual(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	res, err := Q(func() int { return 5 }).Done()
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Equal(res, 5, "Return value doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestBasicChainWithError
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestBasicChainWithOneThenFunc(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	res, err := Q(func() (string, error) {
 		return "Hello Q", fmt.Errorf("This is an error!")
 
 	}).Then(func(theString string, theError error) int {
@@ -23,25 +46,7 @@ func TestBasicChainWithError(t *testing.T) {
 
 	}).Done()
 
+	assert.Nil(err, "Error return value doesn't match.")
 	assert.Equal(res, 5, "Return value doesn't match.")
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// TestReturnValueIsNil
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-func TestReturnValueIsNil(t *testing.T) {
-	assert := asserts.NewTestingAsserts(t, true)
-
-	res := Q(func() {}).Done()
-	assert.Nil(res, "Return value doesn't match.")
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-// TestReturnValueIsEqual
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-func TestReturnValueIsEqual(t *testing.T) {
-	assert := asserts.NewTestingAsserts(t, true)
-
-	res := Q(func() int { return 5 }).Done()
-	assert.Equal(res, 5, "Return value doesn't match.")
-}
+*/
