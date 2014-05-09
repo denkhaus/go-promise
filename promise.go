@@ -59,13 +59,15 @@ func (p *Promise) invoke(fn interface{}, in []reflect.Value) {
 
 	//check arguments count equal
 	if len(in) != t.NumIn() {
-		p.send([]reflect.Value{}, fmt.Errorf("Function argument count mismatch"))
+		// internal error, send the prev output and return internal error.
+		p.send(in, fmt.Errorf("Function argument count mismatch."))
 		return
 	}
 	//check arguments types equal
 	for idx, inVal := range in {
 		if inVal.Type() != t.In(idx) {
-			p.send([]reflect.Value{}, fmt.Errorf("Function argument type mismatch"))
+			// internal error, send the prev output and return internal error.
+			p.send(in, fmt.Errorf("Function argument type mismatch."))
 			return
 		}
 	}
@@ -76,9 +78,14 @@ func (p *Promise) invoke(fn interface{}, in []reflect.Value) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // Q
 ///////////////////////////////////////////////////////////////////////////////////////
-func Q(fn interface{}) *Promise {
+func Q(init interface{}) *Promise {
 	pr := makePromise()
-	go pr.invoke(fn, []reflect.Value{})
+	t := reflect.TypeOf(init)
+
+	if t.Kind() == reflect.Func {
+		go pr.invoke(init, []reflect.Value{})
+	}
+
 	return pr
 }
 
