@@ -14,8 +14,9 @@ type Deferred struct {
 ///////////////////////////////////////////////////////////////////////////////////////
 // makeDeferred
 ///////////////////////////////////////////////////////////////////////////////////////
-func makeDeferred(parent *Deferred) *Deferred {
+func makeDeferred(parent *Deferred, init []interface{}) *Deferred {
 	df := &Deferred{prev: parent}
+	df.targets = toValueArray(init)
 	df.rf = make(ResultFuture)
 
 	if parent != nil {
@@ -26,11 +27,11 @@ func makeDeferred(parent *Deferred) *Deferred {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Defer creates a Deferred datatype. A Deferred can be resolved by value or a promise.
+// Defer creates a Deferred datatype. A Deferred can be resolved by value(s), func(s)
+// Promise or Deferred.
 ///////////////////////////////////////////////////////////////////////////////////////
-func Defer(fns ...interface{}) *Deferred {
-	df := makeDeferred(nil)
-	df.targets = toValueArray(fns)
+func Defer(init ...interface{}) *Deferred {
+	df := makeDeferred(nil, init)
 	return df
 }
 
@@ -48,11 +49,11 @@ func (d *Deferred) resolve(init []interface{}) {
 		in = d.receiveWithIndex()
 	}
 
-	d.invokeAll(d.targets, in)
+	d.invokeTargets(d.targets, in)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Resolve |
+// Resolve
 ///////////////////////////////////////////////////////////////////////////////////////
 func (d *Deferred) Resolve(init ...interface{}) {
 
@@ -105,8 +106,7 @@ func (d *Deferred) Reject(err error) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // Deferred Then
 ///////////////////////////////////////////////////////////////////////////////////////
-func (d *Deferred) Then(fns ...interface{}) *Deferred {
-	df := makeDeferred(d)
-	df.targets = toValueArray(fns)
+func (d *Deferred) Then(init ...interface{}) *Deferred {
+	df := makeDeferred(d, init)
 	return df
 }

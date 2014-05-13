@@ -174,31 +174,53 @@ func (p *invokable) invokeFunc(fn reflect.Value, in []reflect.Value, targetIdx i
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// invokeAll
+// invoke
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *invokable) invokeAll(targets []reflect.Value, in []reflect.Value) {
+func (p *invokable) resolveQ(in []reflect.Value) []reflect.Value {
 
-	//TODO handle promise input
+	out := []reflect.Value{}
+	for _, inVal := range in {
+		t := inVal.Type()
 
-	inputs := in
+		//is input promis or deferred
+		if t == PromiseType || t == DeferredType {
+			v := inVal.MethodByName("receiveWithIndex")
+			res := v.Call([]reflect.Value{})
+			out = append(out, res...)
+		} else {
+			out = append(out, inVal)
+		}
+	}
+
+	return out
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// invokeTargets
+///////////////////////////////////////////////////////////////////////////////////////
+func (p *invokable) invokeTargets(targets []reflect.Value, in []reflect.Value) {
+
+	inputs := p.resolveQ(in)
 	maxIdx := len(targets)
+
 	for idx, target := range targets {
 		t := target.Type()
 
 		switch t.Kind() {
 		case reflect.Func:
-			nFuncInputs := t.NumIn()
+			nFnInpts := t.NumIn()
 
-			//check we have enough funct inputs
-			if len(inputs) < nFuncInputs {
+			//check we have enough func inputs
+			if len(inputs) < nFnInpts {
 				p.sendError(target, "Function argument count mismatch.")
 				return
 			}
 
 			// extract the inputs we need and invoke the func
-			actIn := inputs[:nFuncInputs]
-			inputs = inputs[nFuncInputs:]
+			actIn := inputs[:nFnInpts]
+			inputs = inputs[nFnInpts:]
 			p.invokeFunc(target, actIn, idx, maxIdx)
+
 		default:
 			//send values directly
 			p.sendWithIndex([]reflect.Value{target}, idx, maxIdx)
