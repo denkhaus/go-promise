@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	DeferredType = reflect.TypeOf(Deferred{})
-	PromiseType  = reflect.TypeOf(Promised{})
+	DeferredPtrType = reflect.TypeOf(&Deferred{})
+	PromisedPtrType = reflect.TypeOf(&Promised{})
 )
 
 ///////////////////////////////////////////////////////////////////////////////////////

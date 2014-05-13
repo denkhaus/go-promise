@@ -10,21 +10,24 @@ import (
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // DeferredTestReturnValueIsNil
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestReturnValueIsEmptyAndErrorIsNil(t *testing.T) {
+func TestDeferredReturnValueIsEmptyAndErrorIsNil(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+	executed := 0
 
-	df := Defer(func() {})
+	df := Defer(func() { executed++ })
 	df.Resolve()
+
 	res, err := df.Done()
 
+	assert.Equal(executed, 1, "Executed value doesn't match.")
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Empty(res, "Return value doesn't match.")
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestReturnValueIsValid1
+// TestDeferredReturnValueIsValid1
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestReturnValueIsValid1(t *testing.T) {
+func TestDeferredReturnValueIsValid1(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func() int { return 5 })
@@ -39,7 +42,7 @@ func DeferredTestReturnValueIsValid1(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // DeferredTestReturnValueIsValid2
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestReturnValueIsValid2(t *testing.T) {
+func TestDeferredReturnValueIsValid2(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func() (int, error) { return 5, fmt.Errorf("This is an error!") })
@@ -53,9 +56,9 @@ func DeferredTestReturnValueIsValid2(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithOneThenFunc
+// TestDeferredBasicChainWithOneThenFunc
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithOneThenFunc(t *testing.T) {
+func TestDeferredBasicChainWithOneThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func() (string, error) {
@@ -78,9 +81,47 @@ func DeferredTestBasicChainWithOneThenFunc(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithArgumentCountFailing
+// TestDeferredBasicChainResolveByValue
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithArgumentCountFailing(t *testing.T) {
+func TestDeferredBasicChainResolveByValue(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	df := Defer(func(inp string) (string, error) {
+		return inp, fmt.Errorf("This is an error!")
+	})
+
+	df.Resolve("Hello Q")
+	res, err := df.Done()
+
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Length(res, 2, "Return value has invalid length.")
+	assert.Equal(res[0], "Hello Q", "Return value doesn't match.")
+	assert.ErrorMatch(res[1].(error), "This is an error!", "Error value doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestDeferredBasicChainResolveByFunc
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestDeferredBasicChainResolveByFunc(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	df := Defer(func(inp string) (string, error) {
+		return inp, fmt.Errorf("This is an error!")
+	})
+
+	df.Resolve(func() string { return "Hello Q" })
+	res, err := df.Done()
+
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Length(res, 2, "Return value has invalid length.")
+	assert.Equal(res[0], "Hello Q", "Return value doesn't match.")
+	assert.ErrorMatch(res[1].(error), "This is an error!", "Error value doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestDeferredBasicChainWithArgumentCountFailing
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestDeferredBasicChainWithArgumentCountFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	executed := false
@@ -105,9 +146,9 @@ func DeferredTestBasicChainWithArgumentCountFailing(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithArgumentTypeFailing
+// TestDeferredBasicChainWithArgumentTypeFailing
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithArgumentTypeFailing(t *testing.T) {
+func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	executed := false
@@ -133,9 +174,9 @@ func DeferredTestBasicChainWithArgumentTypeFailing(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithFirstInputFromResolve1
+// TestDeferredBasicChainWithResolveByValueAndThenFunc
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithFirstInputFromResolve1(t *testing.T) {
+func TestDeferredBasicChainWithResolveByValueAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func(inp string) (string, error) {
@@ -157,9 +198,9 @@ func DeferredTestBasicChainWithFirstInputFromResolve1(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithFirstInputFuncFromResolve1
+// TestDeferredBasicChainWithResolveByFuncAndThenFunc
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithFirstInputFuncFromResolve1(t *testing.T) {
+func TestDeferredBasicChainWithResolveByFuncAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func(inp string) (string, error) {
@@ -181,9 +222,9 @@ func DeferredTestBasicChainWithFirstInputFuncFromResolve1(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithFirstInputFromResolve
+// TestDeferredBasicChainWithResolveByValuesAndThenFunc
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithFirstInputFromResolve2(t *testing.T) {
+func TestDeferredBasicChainWithResolveByValuesAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func(inp1 string, inp2 int) (string, int) {
@@ -205,9 +246,9 @@ func DeferredTestBasicChainWithFirstInputFromResolve2(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithFirstInputFuncFromResolve2
+// TestDeferredBasicChainWithResolveByFuncAndThenFunc2
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithFirstInputFuncFromResolve2(t *testing.T) {
+func TestDeferredBasicChainWithResolveByFuncAndThenFunc2(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func(inp1 string, inp2 int) (string, int) {
@@ -229,9 +270,9 @@ func DeferredTestBasicChainWithFirstInputFuncFromResolve2(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// DeferredTestBasicChainWithFirstInputFuncFromResolve2ThenFuncs
+// TestDeferredBasicChainWithOverlapping
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func DeferredTestBasicChainWithFirstInputFuncFromResolve2ThenFuncs(t *testing.T) {
+func TestDeferredBasicChainWithOverlapping(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	df := Defer(func(inp1 string, inp2 int, errorText string) (string, int, error) {
@@ -257,5 +298,42 @@ func DeferredTestBasicChainWithFirstInputFuncFromResolve2ThenFuncs(t *testing.T)
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 2, "Return value has invalid length.")
 	assert.Equal(res[0], 5, "Return value1 doesn't match.")
-	assert.Equal(res[0], 10, "Return value2 doesn't match.")
+	assert.Equal(res[1], 10, "Return value2 doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestDeferredBasicChainWithOverlappingAndPromiseInput
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestDeferredBasicChainWithOverlappingAndPromiseInput(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	df := Defer(func(inp1 string, inp2 int, errorText string) (string, *Promised, error) {
+
+		p := Promise(func() int {
+			return inp2
+		})
+
+		return inp1, p, errors.New(errorText)
+
+	}).Then(func(theString string, theInt int) int {
+
+		assert.Equal(theString, "Hello Q", "String value doesn't match.")
+		assert.Equal(theInt, 10, "Int value doesn't match.")
+		return 5
+
+	}, func(err error) int {
+		assert.ErrorMatch(err, "This is an error!", "Error value doesn't match.")
+		return 10
+	})
+
+	df.Resolve(func() (string, int, string) {
+		return "Hello Q", 10, "This is an error!"
+	})
+
+	res, err := df.Done()
+
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Length(res, 2, "Return value has invalid length.")
+	assert.Equal(res[0], 5, "Return value1 doesn't match.")
+	assert.Equal(res[1], 10, "Return value2 doesn't match.")
 }

@@ -81,9 +81,9 @@ func (i *invokable) receive() (out []reflect.Value) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // receive
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) sendError(fnv interface{}, err string) {
+func (i *invokable) sendError(fnv interface{}, idx int, err string) {
 	// send dummy to avoid goroutine deadlock
-	i.sendWithIndex([]reflect.Value{}, -1, -1)
+	i.sendWithIndex([]reflect.Value{}, idx, -1)
 	i.setError(fnv, err)
 }
 
@@ -122,28 +122,28 @@ func (i *invokable) sendWithIndex(out []reflect.Value, actIdx int, maxIdx int) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // receiveWithIndex
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) receiveWithIndex() []reflect.Value {
+func (i *invokable) ReceiveWithIndex() []reflect.Value {
 
 	nInputs := 0
+	wait4Data := true
 	rvd := [][]reflect.Value{}
 
-	insert := func(e resultEnvelope) {
+	insert := func(e resultEnvelope) bool {
 		for e.actIdx >= len(rvd) {
 			rvd = append(rvd, []reflect.Value{})
 		}
+
 		rvd[e.actIdx] = e.result
+		nInputs++
+
+		//in case of internal error in.maxIdx == -1 to end loop
+		return nInputs < e.maxIdx && e.maxIdx != -1
 	}
 
-	for {
+	for wait4Data {
 		select {
 		case in := <-i.rf:
-			nInputs++
-			insert(in)
-
-			if nInputs == in.maxIdx || // all inputs received
-				in.maxIdx == -1 { //in case of internal error in.maxIdx == -1 to end loop
-				break
-			}
+			wait4Data = insert(in)
 		}
 	}
 
@@ -165,7 +165,8 @@ func (p *invokable) invokeFunc(fn reflect.Value, in []reflect.Value, targetIdx i
 	//check arguments types equal
 	for idx, inVal := range in {
 		if inVal.Type() != t.In(idx) {
-			p.sendError(fn, "Function argument type mismatch.")
+			details := fmt.Sprintf("Function argument type mismatch. (%v -> %v)", inVal.Type(), t.In(idx))
+			p.sendError(fn, idx, details)
 			return
 		}
 	}
@@ -183,8 +184,8 @@ func (p *invokable) resolveQ(in []reflect.Value) []reflect.Value {
 		t := inVal.Type()
 
 		//is input promis or deferred
-		if t == PromiseType || t == DeferredType {
-			v := inVal.MethodByName("receiveWithIndex")
+		if t == PromisedPtrType || t == DeferredPtrType {
+			v := inVal.MethodByName("ReceiveWithIndex")
 			res := v.Call([]reflect.Value{})
 			out = append(out, res...)
 		} else {
@@ -212,7 +213,7 @@ func (p *invokable) invokeTargets(targets []reflect.Value, in []reflect.Value) {
 
 			//check we have enough func inputs
 			if len(inputs) < nFnInpts {
-				p.sendError(target, "Function argument count mismatch.")
+				p.sendError(target, idx, "Function argument count mismatch. Need more inputs.")
 				return
 			}
 

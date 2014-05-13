@@ -38,15 +38,13 @@ func Defer(init ...interface{}) *Deferred {
 ///////////////////////////////////////////////////////////////////////////////////////
 // resolve
 ///////////////////////////////////////////////////////////////////////////////////////
-func (d *Deferred) resolve(init []interface{}) {
+func (d *Deferred) resolve() {
 
-	var in []reflect.Value
+	in := []reflect.Value{}
 
-	if init != nil {
-		in = toValueArray(init)
-	} else {
+	if d.prev != nil { // not the start element
 		//receive new inputs from prev invocation
-		in = d.receiveWithIndex()
+		in = d.prev.ReceiveWithIndex()
 	}
 
 	d.invokeTargets(d.targets, in)
@@ -65,14 +63,20 @@ func (d *Deferred) Resolve(init ...interface{}) {
 		return start
 	}
 
-	//start at the beginning of chain
 	dStart := first()
-	go dStart.resolve(init)
+	// do we have inputs?
+	if len(init) > 0 {
+		// create start deferred to resolve inputs
+		df := makeDeferred(nil, init)
+		//link, and make it the very first
+		df.next = dStart
+		dStart.prev = df
+		dStart = df
+	}
 
 	//resolve all deferreds
-	dStart = dStart.next
 	for dStart != nil {
-		go dStart.resolve(nil)
+		go dStart.resolve()
 		dStart = dStart.next
 	}
 }
@@ -92,7 +96,7 @@ func (d *Deferred) Done() ([]interface{}, error) {
 	}
 
 	theLast := last()
-	data := theLast.receiveWithIndex()
+	data := theLast.ReceiveWithIndex()
 	return fromValueArray(data), theLast.err
 }
 
