@@ -1,7 +1,7 @@
 package Q
 
 import (
-	"reflect"
+//"reflect"
 )
 
 type Promised struct {
@@ -22,24 +22,21 @@ func makePromised() *Promised {
 ///////////////////////////////////////////////////////////////////////////////////////
 // Promise Then
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *Promised) Then(fns ...interface{}) *Promised {
+func (p *Promised) Then(init ...interface{}) *Promised {
 	newP := makePromised()
 
 	go func() {
 		// old error from prev promises
 		if p.err != nil {
-			newP.send([]reflect.Value{}) // send dummy to avoid goroutine deadlock
-			newP.setError(nil, p.err.Error())
+			newP.sendError(nil, 0, p.err.Error())
 			return
 		}
 
 		// wait on result from prev promise
-		out := p.receive()
-
-		// if we have only one Then func, map prev promise outputs to input
-		if len(fns) == 1 {
-			newP.invoke(fns[0], out)
-		}
+		in := p.ReceiveWithIndex()
+		// and invoke it
+		targets := toValueArray(init)
+		newP.invokeTargets(targets, in)
 	}()
 
 	return newP
@@ -50,7 +47,7 @@ func (p *Promised) Then(fns ...interface{}) *Promised {
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promised) Done() ([]interface{}, error) {
 
-	out := p.receive()
+	out := p.ReceiveWithIndex()
 	res := fromValueArray(out)
 	return res, p.err
 }
@@ -58,18 +55,19 @@ func (p *Promised) Done() ([]interface{}, error) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // Finally
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *Promised) Finally(fn interface{}) error {
+func (p *Promised) Finally(init interface{}) error {
 
 	if p.err != nil {
 		return p.err
 	}
 
-	out := p.receive()
-	t := reflect.TypeOf(fn)
-	if t.Kind() == reflect.Func {
-		go p.invoke(fn, out)
-	}
+	in := p.ReceiveWithIndex()
+	//TODO change that, use other toValueArray version
+	vals := make([]interface{}, 1)
+	vals[0] = init
 
+	targets := toValueArray(vals)
+	go p.invokeTargets(targets, in)
 	return nil
 }
 
@@ -79,27 +77,7 @@ func (p *Promised) Finally(fn interface{}) error {
 func Promise(init ...interface{}) *Promised {
 
 	pr := makePromised()
-
-	if len(init) == 1 {
-		t := reflect.TypeOf(init[0])
-
-		//TODO handle promise input
-
-		if t.Kind() == reflect.Func {
-			//input is init func, invoke it
-			go pr.invoke(init[0], []reflect.Value{})
-		} else {
-			//TODO need testcase
-			//input is init value, send it directly
-			v := reflect.ValueOf(init[0])
-			go pr.send([]reflect.Value{v})
-		}
-	} else {
-		//TODO need testcase
-		//inputs are init values, send it directly
-		out := toValueArray(init)
-		go pr.send(out)
-	}
-
+	targets := toValueArray(init)
+	go pr.invokeTargets(targets, nil)
 	return pr
 }

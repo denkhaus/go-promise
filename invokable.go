@@ -199,11 +199,9 @@ func (p *invokable) resolveQ(in []reflect.Value) []reflect.Value {
 ///////////////////////////////////////////////////////////////////////////////////////
 // invokeTargets
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *invokable) invokeTargets(targets []reflect.Value, in []reflect.Value) {
+func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Value) {
 
-	inputs := p.resolveQ(in)
 	maxIdx := len(targets)
-
 	for idx, target := range targets {
 		t := target.Type()
 
@@ -216,11 +214,58 @@ func (p *invokable) invokeTargets(targets []reflect.Value, in []reflect.Value) {
 				p.sendError(target, idx, "Function argument count mismatch. Need more inputs.")
 				return
 			}
+			/*
+				if canInvokeWithParams(t, inputs) {
+					actIn := inputs[:nFnInpts]
+					inputs = inputs[nFnInpts:]
+					p.invokeFunc(target, actIn, idx, maxIdx)
+				} else {
 
-			// extract the inputs we need and invoke the func
-			actIn := inputs[:nFnInpts]
-			inputs = inputs[nFnInpts:]
-			p.invokeFunc(target, actIn, idx, maxIdx)
+					fmt.Println("lulu %v", t)
+				}
+			*/
+
+			if !canInvokeWithParams(t, inputs) {
+				//should we resolve inputs before invoking func?
+				taken := 0 //from original input
+				invInput := []reflect.Value{}
+
+				for i := 0; i < nFnInpts; i++ {
+					inpType := inputs[i].Type()
+
+					if inpType != t.In(i) && isResolvable(inpType) {
+						v := inputs[i].MethodByName("ReceiveWithIndex")
+						res := v.Call([]reflect.Value{})
+						invInput = append(invInput, res...)
+						i += len(res)
+						taken++
+					} else {
+						invInput = append(invInput, inputs[i])
+						taken++
+					}
+				}
+
+				//check again
+				if canInvokeWithParams(t, invInput) {
+					inputs = inputs[taken:]
+					p.invokeFunc(target, invInput, idx, maxIdx)
+				} else {
+
+					//check for argument errors
+					for idx, inVal := range invInput {
+						if inVal.Type() != t.In(idx) {
+							details := fmt.Sprintf("Function argument type mismatch. (%v -> %v)", inVal.Type(), t.In(idx))
+							p.sendError(target, idx, details)
+							return
+						}
+					}
+				}
+			} else {
+				// extract the inputs we need and invoke the func
+				actIn := inputs[:nFnInpts]
+				inputs = inputs[nFnInpts:]
+				p.invokeFunc(target, actIn, idx, maxIdx)
+			}
 
 		default:
 			//send values directly
