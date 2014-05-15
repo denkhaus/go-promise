@@ -10,6 +10,7 @@ type resolver struct {
 	val reflect.Value
 	t   reflect.Type
 }
+type OnResolveFunc func([]reflect.Value)
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // InArgCount
@@ -50,7 +51,6 @@ func (r *resolver) CanInvokeWithParams(in []reflect.Value) bool {
 func (r *resolver) IsResolvable(t reflect.Type) bool {
 
 	if t == DeferredPtrType || t == PromisedPtrType {
-
 		return true
 	}
 	return false
@@ -65,8 +65,6 @@ func Resolver(val reflect.Value) *resolver {
 	return r
 }
 
-type OnResolveFunc func([]reflect.Value)
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // Resolve
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -74,33 +72,39 @@ func (r *resolver) Resolve(in []reflect.Value, onResolve OnResolveFunc) ([]refle
 
 	nFnInpts := r.InArgCount()
 
-	//check we have enough func inputs
-	if len(in) < nFnInpts {
-		return nil, errors.New("Function argument count mismatch. Need more inputs.")
-	}
+	delta := 0
+	resInp := []reflect.Value{}
+	remInp := []reflect.Value{}
+	for actIdx, actInput := range in {
+		actInpType := actInp.Type()
+		targIdx := actIdx + delta
 
-	inIdx := 0
-	resInput := []reflect.Value{}
-	for resIdx := 0; resIdx < nFnInpts; resIdx++ {
-		inpType := in[inIdx].Type()
+		if targIdx >= nFnInpts {
+			break
+		}
 
-		if inpType != r.InArgType(resIdx) && r.IsResolvable(inpType) {
-
-			v := in[inIdx].Interface().(*Promised)
+		if actInputType != r.InArgType(targIdx) &&
+			r.IsResolvable(actInputType) {
+			v := actInput.Interface().(*Promised)
 			res := v.receive()
 			resInput = append(resInput, res...)
-			resIdx += len(res)
+			delta += len(res)
 		} else {
-			resInput = append(resInput, in[inIdx])
+			resInput = append(resInput, actInput)
 		}
-		inIdx++
+		remInp = in[actIdx+1:]
 	}
 
 	//check again
 	if r.CanInvokeWithParams(resInput) {
 		onResolve(resInput)
-		return in[inIdx:], nil
+		return remInput, nil
 	} else {
+
+		//check we have enough func inputs
+		if len(resInput) < nFnInpts {
+			return nil, errors.New("Function argument count mismatch. Need more inputs.")
+		}
 
 		//check for argument errors
 		for idx, inVal := range resInput {

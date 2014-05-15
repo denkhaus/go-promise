@@ -7,18 +7,20 @@ import (
 	"testing"
 )
 
-/*
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // DeferredTestReturnValueIsNil
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredReturnValueIsEmptyAndErrorIsNil(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
-	executed := 0
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
+	executed := 0
 	df := Defer(func() { executed++ })
 	df.Resolve()
 
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Equal(executed, 1, "Executed value doesn't match.")
 	assert.Nil(err, "Error return value doesn't match.")
@@ -31,9 +33,12 @@ func TestDeferredReturnValueIsEmptyAndErrorIsNil(t *testing.T) {
 func TestDeferredReturnValueIsValid1(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func() int { return 5 })
 	df.Resolve()
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
@@ -46,21 +51,27 @@ func TestDeferredReturnValueIsValid1(t *testing.T) {
 func TestDeferredReturnValueIsValid2(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func() (int, error) { return 5, fmt.Errorf("This is an error!") })
 	df.Resolve()
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 2, "Return value has invalid length.")
 	assert.Equal(res[0], 5, "Return value doesn't match.")
 	assert.ErrorMatch(res[1].(error), "This is an error!", "Error value doesn't match.")
 }
-*/
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // TestDeferredBasicChainWithOneThenFunc
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithOneThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+
+	var err error
+	OnInternalError(func(e error) { err = e })
 
 	df := Defer(func() (string, error) {
 		return "Hello Q", fmt.Errorf("This is an error!")
@@ -74,7 +85,7 @@ func TestDeferredBasicChainWithOneThenFunc(t *testing.T) {
 	})
 
 	df.Resolve()
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
@@ -87,12 +98,15 @@ func TestDeferredBasicChainWithOneThenFunc(t *testing.T) {
 func TestDeferredBasicChainResolveByValue(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 	})
 
 	df.Resolve("Hello Q")
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 2, "Return value has invalid length.")
@@ -106,12 +120,15 @@ func TestDeferredBasicChainResolveByValue(t *testing.T) {
 func TestDeferredBasicChainResolveByFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 	})
 
 	df.Resolve(func() string { return "Hello Q" })
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 2, "Return value has invalid length.")
@@ -124,6 +141,11 @@ func TestDeferredBasicChainResolveByFunc(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithArgumentCountFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+
+	OnInternalError(func(err error) {
+		assert.NotNil(err, "Error return value doesn't match.")
+		assert.Substring(err.Error(), "Function argument count mismatch.", "Internal Error value doesn't match.")
+	})
 
 	executed := false
 	df := Defer(func() string {
@@ -138,11 +160,9 @@ func TestDeferredBasicChainWithArgumentCountFailing(t *testing.T) {
 	})
 
 	df.Resolve()
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.False(executed, "Then func was executed.")
-	assert.NotNil(err, "Error return value doesn't match.")
-	assert.Substring(err.Error(), "Function argument count mismatch.", "Internal Error value doesn't match.")
 	assert.Length(res, 0, "Return value has invalid length.")
 }
 
@@ -151,6 +171,11 @@ func TestDeferredBasicChainWithArgumentCountFailing(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+
+	OnInternalError(func(err error) {
+		assert.NotNil(err, "Error return value doesn't match.")
+		assert.Substring(err.Error(), "Function argument type mismatch.", "Internal Error value doesn't match.")
+	})
 
 	executed := false
 	df := Defer(func() (string, error) {
@@ -166,11 +191,9 @@ func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 	})
 
 	df.Resolve()
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.False(executed, "Then func was executed.")
-	assert.NotNil(err, "Error return value doesn't match.")
-	assert.Substring(err.Error(), "Function argument type mismatch.", "Internal Error value doesn't match.")
 	assert.Length(res, 0, "Return value has invalid length.")
 }
 
@@ -179,6 +202,9 @@ func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithResolveByValueAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+
+	var err error
+	OnInternalError(func(e error) { err = e })
 
 	df := Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
@@ -191,7 +217,7 @@ func TestDeferredBasicChainWithResolveByValueAndThenFunc(t *testing.T) {
 	})
 
 	df.Resolve("Hello Q")
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
@@ -204,6 +230,9 @@ func TestDeferredBasicChainWithResolveByValueAndThenFunc(t *testing.T) {
 func TestDeferredBasicChainWithResolveByFuncAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 
@@ -215,7 +244,7 @@ func TestDeferredBasicChainWithResolveByFuncAndThenFunc(t *testing.T) {
 	})
 
 	df.Resolve(func() string { return "Hello Q" })
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
@@ -228,6 +257,9 @@ func TestDeferredBasicChainWithResolveByFuncAndThenFunc(t *testing.T) {
 func TestDeferredBasicChainWithResolveByValuesAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func(inp1 string, inp2 int) (string, int) {
 		return inp1, inp2
 
@@ -239,7 +271,38 @@ func TestDeferredBasicChainWithResolveByValuesAndThenFunc(t *testing.T) {
 	})
 
 	df.Resolve("Hello Q", 10)
-	res, err := df.Done()
+	res := df.Done()
+
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Length(res, 1, "Return value has invalid length.")
+	assert.Equal(res[0], 5, "Return value doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestDeferredBasicChainWithResolveByPromiseAndThenFunc
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestDeferredBasicChainWithResolveByPromisAndThenFunc(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	var err error
+	OnInternalError(func(e error) { err = e })
+
+	df := Defer(func(inp1 string, inp2 int) (string, int) {
+		return inp1, inp2
+
+	}).Then(func(theString string, theInt int) int {
+
+		assert.Equal(theString, "Hello Q", "String value doesn't match.")
+		assert.Equal(theInt, 10, "Int value doesn't match.")
+		return 5
+	})
+
+	p := Promise(func() (string, int) {
+		return "Hello Q", 10
+	})
+
+	df.Resolve(p)
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
@@ -252,6 +315,9 @@ func TestDeferredBasicChainWithResolveByValuesAndThenFunc(t *testing.T) {
 func TestDeferredBasicChainWithResolveByFuncAndThenFunc2(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	var err error
+	OnInternalError(func(e error) { err = e })
+
 	df := Defer(func(inp1 string, inp2 int) (string, int) {
 		return inp1, inp2
 
@@ -263,7 +329,7 @@ func TestDeferredBasicChainWithResolveByFuncAndThenFunc2(t *testing.T) {
 	})
 
 	df.Resolve(func() (string, int) { return "Hello Q", 10 })
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
@@ -275,6 +341,9 @@ func TestDeferredBasicChainWithResolveByFuncAndThenFunc2(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithOverlapping(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+
+	var err error
+	OnInternalError(func(e error) { err = e })
 
 	df := Defer(func(inp1 string, inp2 int, errorText string) (string, int, error) {
 		return inp1, inp2, errors.New(errorText)
@@ -294,7 +363,7 @@ func TestDeferredBasicChainWithOverlapping(t *testing.T) {
 		return "Hello Q", 10, "This is an error!"
 	})
 
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 2, "Return value has invalid length.")
@@ -307,6 +376,9 @@ func TestDeferredBasicChainWithOverlapping(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithOverlappingAndPromiseInput(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
+
+	var err error
+	OnInternalError(func(e error) { err = e })
 
 	df := Defer(func(inp1 string, inp2 int, errorText string) (string, *Promised, error) {
 
@@ -331,7 +403,7 @@ func TestDeferredBasicChainWithOverlappingAndPromiseInput(t *testing.T) {
 		return "Hello Q", 10, "This is an error!"
 	})
 
-	res, err := df.Done()
+	res := df.Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 2, "Return value has invalid length.")

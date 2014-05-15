@@ -85,7 +85,7 @@ func (d *Deferred) Resolve(init ...interface{}) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // Done
 ///////////////////////////////////////////////////////////////////////////////////////
-func (d *Deferred) Done() ([]interface{}, error) {
+func (d *Deferred) Done() []interface{} {
 
 	last := func() *Deferred {
 		start := d
@@ -98,7 +98,7 @@ func (d *Deferred) Done() ([]interface{}, error) {
 
 	theLast := last()
 	data := theLast.receive()
-	return fromValueArray(data), theLast.err
+	return fromValueArray(data)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

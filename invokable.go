@@ -123,6 +123,7 @@ func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 
 				if err != nil {
 					p.sendError(target, idx, err)
+					publishError(err)
 					return
 				}
 
@@ -140,6 +141,6 @@ func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 	}
 
 	if len(inputs) > 0 {
-		panic("invokeAll:: we got invoke inputs leftovers")
+		panic("invokeAll:: we got invoke inputs leftovers::" + fmt.Sprint(inputs))
 	}
 }
