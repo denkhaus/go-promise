@@ -10,33 +10,27 @@ import (
 	"strings"
 )
 
-type errorAware struct {
-	err error
-}
-
 type resultEnvelope struct {
 	result []reflect.Value
 	actIdx int
 	maxIdx int
 }
 
-type ParamFuture chan []reflect.Value
-
 type ResultFuture chan resultEnvelope
 
 type invokable struct {
-	errorAware
-	pf ParamFuture
-	rf ResultFuture
+	err    error
+	result []reflect.Value
+	rf     ResultFuture
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // setError
 ///////////////////////////////////////////////////////////////////////////////////////
-func (e *errorAware) setError(fnv interface{}, err string) {
+func (e *invokable) setError(fnv interface{}, err error) {
 
 	if fnv == nil {
-		e.err = errors.New(err)
+		e.err = err
 		return
 	}
 
@@ -50,79 +44,31 @@ func (e *errorAware) setError(fnv interface{}, err string) {
 	buffer := &bytes.Buffer{}
 
 	fmt.Fprintf(buffer, "Q internal error ------------------------------------------------------------------------\n")
-	fmt.Fprintf(buffer, "%s: line %d -> %s '%s'\n\n", fileName, line, funcName, err)
+	fmt.Fprintf(buffer, "%s: line %d -> %s '%s'\n\n", fileName, line, funcName, err.Error())
 
 	e.err = errors.New(buffer.String())
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// send
-///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) send(out []reflect.Value) {
-	i.pf <- out
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // receive
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) receive() (out []reflect.Value) {
-
-	outR := false
-
-	for !outR {
-		select {
-		case out = <-i.pf:
-			outR = true
-		}
-	}
-	return
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// receive
-///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) sendError(fnv interface{}, idx int, err string) {
+func (i *invokable) sendError(fnv interface{}, idx int, err error) {
 	// send dummy to avoid goroutine deadlock
-	i.sendWithIndex([]reflect.Value{}, idx, -1)
+	i.send([]reflect.Value{}, idx, -1)
 	i.setError(fnv, err)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// invoke
+// send
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *invokable) invoke(fn interface{}, in []reflect.Value) {
-	v := reflect.ValueOf(fn)
-	t := v.Type()
-
-	//check arguments count equal
-	if len(in) != t.NumIn() {
-		p.send([]reflect.Value{}) // send dummy to avoid goroutine deadlock
-		p.setError(v, "Function argument count mismatch.")
-		return
-	}
-	//check arguments types equal
-	for idx, inVal := range in {
-		if inVal.Type() != t.In(idx) {
-			p.send([]reflect.Value{}) // send dummy to avoid goroutine deadlock
-			p.setError(v, "Function argument type mismatch.")
-			return
-		}
-	}
-
-	p.send(v.Call(in))
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// sendWithIndex
-///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) sendWithIndex(out []reflect.Value, actIdx int, maxIdx int) {
+func (i *invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
 	i.rf <- resultEnvelope{result: out, actIdx: actIdx, maxIdx: maxIdx}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // receiveWithIndex
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) ReceiveWithIndex() []reflect.Value {
+func (i *invokable) receive() []reflect.Value {
 
 	nInputs := 0
 	wait4Data := true
@@ -141,10 +87,8 @@ func (i *invokable) ReceiveWithIndex() []reflect.Value {
 	}
 
 	for wait4Data {
-		select {
-		case in := <-i.rf:
-			wait4Data = insert(in)
-		}
+		in := <-i.rf
+		wait4Data = insert(in)
 	}
 
 	//flatten received data
@@ -153,47 +97,8 @@ func (i *invokable) ReceiveWithIndex() []reflect.Value {
 		data = append(data, arr...)
 	}
 
+	i.result = data
 	return data
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// invoke
-///////////////////////////////////////////////////////////////////////////////////////
-func (p *invokable) invokeFunc(fn reflect.Value, in []reflect.Value, targetIdx int, maxIdx int) {
-	t := fn.Type()
-
-	//check arguments types equal
-	for idx, inVal := range in {
-		if inVal.Type() != t.In(idx) {
-			details := fmt.Sprintf("Function argument type mismatch. (%v -> %v)", inVal.Type(), t.In(idx))
-			p.sendError(fn, idx, details)
-			return
-		}
-	}
-
-	p.sendWithIndex(fn.Call(in), targetIdx, maxIdx)
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// invoke
-///////////////////////////////////////////////////////////////////////////////////////
-func (p *invokable) resolveQ(in []reflect.Value) []reflect.Value {
-
-	out := []reflect.Value{}
-	for _, inVal := range in {
-		t := inVal.Type()
-
-		//is input promis or deferred
-		if t == PromisedPtrType || t == DeferredPtrType {
-			v := inVal.MethodByName("ReceiveWithIndex")
-			res := v.Call([]reflect.Value{})
-			out = append(out, res...)
-		} else {
-			out = append(out, inVal)
-		}
-	}
-
-	return out
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -207,69 +112,30 @@ func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 
 		switch t.Kind() {
 		case reflect.Func:
-			nFnInpts := t.NumIn()
+			r := Resolver(target)
+			nFnInpts := r.InArgCount()
 
-			//check we have enough func inputs
-			if len(inputs) < nFnInpts {
-				p.sendError(target, idx, "Function argument count mismatch. Need more inputs.")
-				return
-			}
-			/*
-				if canInvokeWithParams(t, inputs) {
-					actIn := inputs[:nFnInpts]
-					inputs = inputs[nFnInpts:]
-					p.invokeFunc(target, actIn, idx, maxIdx)
-				} else {
+			var err error
+			if !r.CanInvokeWithParams(inputs) {
+				inputs, err = r.Resolve(inputs, func(resInput []reflect.Value) {
+					p.send(target.Call(resInput), idx, maxIdx)
+				})
 
-					fmt.Println("lulu %v", t)
-				}
-			*/
-
-			if !canInvokeWithParams(t, inputs) {
-				//should we resolve inputs before invoking func?
-				taken := 0 //from original input
-				invInput := []reflect.Value{}
-
-				for i := 0; i < nFnInpts; i++ {
-					inpType := inputs[i].Type()
-
-					if inpType != t.In(i) && isResolvable(inpType) {
-						v := inputs[i].MethodByName("ReceiveWithIndex")
-						res := v.Call([]reflect.Value{})
-						invInput = append(invInput, res...)
-						i += len(res)
-						taken++
-					} else {
-						invInput = append(invInput, inputs[i])
-						taken++
-					}
+				if err != nil {
+					p.sendError(target, idx, err)
+					return
 				}
 
-				//check again
-				if canInvokeWithParams(t, invInput) {
-					inputs = inputs[taken:]
-					p.invokeFunc(target, invInput, idx, maxIdx)
-				} else {
-
-					//check for argument errors
-					for idx, inVal := range invInput {
-						if inVal.Type() != t.In(idx) {
-							details := fmt.Sprintf("Function argument type mismatch. (%v -> %v)", inVal.Type(), t.In(idx))
-							p.sendError(target, idx, details)
-							return
-						}
-					}
-				}
 			} else {
 				// extract the inputs we need and invoke the func
 				actIn := inputs[:nFnInpts]
 				inputs = inputs[nFnInpts:]
-				p.invokeFunc(target, actIn, idx, maxIdx)
+				p.send(target.Call(actIn), idx, maxIdx)
 			}
 
 		default:
 			//send values directly
-			p.sendWithIndex([]reflect.Value{target}, idx, maxIdx)
+			p.send([]reflect.Value{target}, idx, maxIdx)
 		}
 	}
 

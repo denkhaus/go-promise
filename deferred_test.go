@@ -302,7 +302,6 @@ func TestDeferredBasicChainWithOverlapping(t *testing.T) {
 	assert.Equal(res[1], 10, "Return value2 doesn't match.")
 }
 
-/*
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // TestDeferredBasicChainWithOverlappingAndPromiseInput
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -339,4 +338,3 @@ func TestDeferredBasicChainWithOverlappingAndPromiseInput(t *testing.T) {
 	assert.Equal(res[0], 5, "Return value1 doesn't match.")
 	assert.Equal(res[1], 10, "Return value2 doesn't match.")
 }
-*/

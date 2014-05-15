@@ -1,7 +1,7 @@
 package Q
 
 import (
-//"reflect"
+	"reflect"
 )
 
 type Promised struct {
@@ -13,8 +13,8 @@ type Promised struct {
 ///////////////////////////////////////////////////////////////////////////////////////
 func makePromised() *Promised {
 	pr := new(Promised)
-	pr.pf = make(ParamFuture)
 	pr.rf = make(ResultFuture)
+	pr.result = []reflect.Value{}
 
 	return pr
 }
@@ -28,12 +28,12 @@ func (p *Promised) Then(init ...interface{}) *Promised {
 	go func() {
 		// old error from prev promises
 		if p.err != nil {
-			newP.sendError(nil, 0, p.err.Error())
+			newP.sendError(nil, 0, p.err)
 			return
 		}
 
 		// wait on result from prev promise
-		in := p.ReceiveWithIndex()
+		in := p.receive()
 		// and invoke it
 		targets := toValueArray(init)
 		newP.invokeTargets(targets, in)
@@ -47,7 +47,7 @@ func (p *Promised) Then(init ...interface{}) *Promised {
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promised) Done() ([]interface{}, error) {
 
-	out := p.ReceiveWithIndex()
+	out := p.receive()
 	res := fromValueArray(out)
 	return res, p.err
 }
@@ -61,7 +61,7 @@ func (p *Promised) Finally(init interface{}) error {
 		return p.err
 	}
 
-	in := p.ReceiveWithIndex()
+	in := p.receive()
 	//TODO change that, use other toValueArray version
 	vals := make([]interface{}, 1)
 	vals[0] = init

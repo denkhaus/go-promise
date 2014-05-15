@@ -6,9 +6,9 @@ import (
 
 type Deferred struct {
 	invokable
-	targets []reflect.Value
-	prev    *Deferred
-	next    *Deferred
+	targ []reflect.Value
+	prev *Deferred
+	next *Deferred
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -16,7 +16,8 @@ type Deferred struct {
 ///////////////////////////////////////////////////////////////////////////////////////
 func makeDeferred(parent *Deferred, init []interface{}) *Deferred {
 	df := &Deferred{prev: parent}
-	df.targets = toValueArray(init)
+	df.targ = toValueArray(init)
+	df.result = []reflect.Value{}
 	df.rf = make(ResultFuture)
 
 	if parent != nil {
@@ -44,10 +45,10 @@ func (d *Deferred) resolve() {
 
 	if d.prev != nil { // not the start element
 		//receive new inputs from prev invocation
-		in = d.prev.ReceiveWithIndex()
+		in = d.prev.receive()
 	}
 
-	d.invokeTargets(d.targets, in)
+	d.invokeTargets(d.targ, in)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -96,7 +97,7 @@ func (d *Deferred) Done() ([]interface{}, error) {
 	}
 
 	theLast := last()
-	data := theLast.ReceiveWithIndex()
+	data := theLast.receive()
 	return fromValueArray(data), theLast.err
 }
 
