@@ -7,21 +7,15 @@ import (
 
 type ErrorFunc func(err error)
 
-type settings struct {
+var qSet struct {
 	mutex   sync.Mutex
 	onError ErrorFunc
 }
 
-var (
-	qSet            = settings{}
-	DeferredPtrType = reflect.TypeOf(&Deferred{})
-	PromisedPtrType = reflect.TypeOf(&Promised{})
-)
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // OnInternalError
 ///////////////////////////////////////////////////////////////////////////////////////
-func OnInternalError(errorFunc ErrorFunc) {
+func OnComposingError(errorFunc ErrorFunc) {
 	qSet.mutex.Lock()
 	defer qSet.mutex.Unlock()
 	qSet.onError = errorFunc

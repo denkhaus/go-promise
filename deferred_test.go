@@ -1,10 +1,12 @@
-package Q
+package Q_test
 
 import (
 	"bitbucket.org/mendsley/tcgl/asserts"
 	"errors"
 	"fmt"
+	"github.com/denkhaus/go-q"
 	"testing"
+	"time"
 )
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -14,10 +16,10 @@ func TestDeferredReturnValueIsEmptyAndErrorIsNil(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
 	executed := 0
-	df := Defer(func() { executed++ })
+	df := Q.Defer(func() { executed++ })
 	df.Resolve()
 
 	res := df.Done()
@@ -34,9 +36,9 @@ func TestDeferredReturnValueIsValid1(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func() int { return 5 })
+	df := Q.Defer(func() int { return 5 })
 	df.Resolve()
 	res := df.Done()
 
@@ -52,9 +54,9 @@ func TestDeferredReturnValueIsValid2(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func() (int, error) { return 5, fmt.Errorf("This is an error!") })
+	df := Q.Defer(func() (int, error) { return 5, fmt.Errorf("This is an error!") })
 	df.Resolve()
 	res := df.Done()
 
@@ -71,9 +73,9 @@ func TestDeferredBasicChainWithOneThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func() (string, error) {
+	df := Q.Defer(func() (string, error) {
 		return "Hello Q", fmt.Errorf("This is an error!")
 
 	}).Then(func(theString string, theError error) int {
@@ -99,9 +101,9 @@ func TestDeferredBasicChainResolveByValue(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp string) (string, error) {
+	df := Q.Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 	})
 
@@ -121,9 +123,9 @@ func TestDeferredBasicChainResolveByFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp string) (string, error) {
+	df := Q.Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 	})
 
@@ -142,13 +144,13 @@ func TestDeferredBasicChainResolveByFunc(t *testing.T) {
 func TestDeferredBasicChainWithArgumentCountFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
-	OnInternalError(func(err error) {
+	Q.OnComposingError(func(err error) {
 		assert.NotNil(err, "Error return value doesn't match.")
 		assert.Substring(err.Error(), "Function argument count mismatch.", "Internal Error value doesn't match.")
 	})
 
 	executed := false
-	df := Defer(func() string {
+	df := Q.Defer(func() string {
 		return "Hello Q"
 	}).Then(func(theString string, theError error) int {
 		executed = true
@@ -172,13 +174,13 @@ func TestDeferredBasicChainWithArgumentCountFailing(t *testing.T) {
 func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
-	OnInternalError(func(err error) {
+	Q.OnComposingError(func(err error) {
 		assert.NotNil(err, "Error return value doesn't match.")
 		assert.Substring(err.Error(), "Function argument type mismatch.", "Internal Error value doesn't match.")
 	})
 
 	executed := false
-	df := Defer(func() (string, error) {
+	df := Q.Defer(func() (string, error) {
 		return "Hello Q", fmt.Errorf("This is an error!")
 
 	}).Then(func(theError error, theString string) int {
@@ -203,13 +205,13 @@ func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 func TestDeferredBasicChainWithUnusedInputsErrorReporting(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
-	OnInternalError(func(err error) {
+	Q.OnComposingError(func(err error) {
 		assert.NotNil(err, "Error return value doesn't match.")
 		assert.Substring(err.Error(), "Unused inputs on target.", "Internal Error value doesn't match.")
 	})
 
 	executed := false
-	df := Defer(func() (string, int, error) {
+	df := Q.Defer(func() (string, int, error) {
 		return "Hello Q", 10, fmt.Errorf("This is an error!")
 
 	}).Then(func(theString string, theInt int) int {
@@ -236,9 +238,9 @@ func TestDeferredBasicChainWithResolveByValueAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp string) (string, error) {
+	df := Q.Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 
 	}).Then(func(theString string, theError error) int {
@@ -263,9 +265,9 @@ func TestDeferredBasicChainWithResolveByFuncAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp string) (string, error) {
+	df := Q.Defer(func(inp string) (string, error) {
 		return inp, fmt.Errorf("This is an error!")
 
 	}).Then(func(theString string, theError error) int {
@@ -290,9 +292,9 @@ func TestDeferredBasicChainWithResolveByValuesAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp1 string, inp2 int) (string, int) {
+	df := Q.Defer(func(inp1 string, inp2 int) (string, int) {
 		return inp1, inp2
 
 	}).Then(func(theString string, theInt int) int {
@@ -317,9 +319,9 @@ func TestDeferredBasicChainWithResolveByPromisAndThenFunc(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp1 string, inp2 int) (string, int) {
+	df := Q.Defer(func(inp1 string, inp2 int) (string, int) {
 		return inp1, inp2
 
 	}).Then(func(theString string, theInt int) int {
@@ -329,7 +331,7 @@ func TestDeferredBasicChainWithResolveByPromisAndThenFunc(t *testing.T) {
 		return 5
 	})
 
-	p := Promise(func() (string, int) {
+	p := Q.Promise(func() (string, int) {
 		return "Hello Q", 10
 	})
 
@@ -348,9 +350,9 @@ func TestDeferredBasicChainWithResolveByFuncAndThenFunc2(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp1 string, inp2 int) (string, int) {
+	df := Q.Defer(func(inp1 string, inp2 int) (string, int) {
 		return inp1, inp2
 
 	}).Then(func(theString string, theInt int) int {
@@ -375,9 +377,9 @@ func TestDeferredBasicChainWithOverlapping(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp1 string, inp2 int, errorText string) (string, int, error) {
+	df := Q.Defer(func(inp1 string, inp2 int, errorText string) (string, int, error) {
 		return inp1, inp2, errors.New(errorText)
 
 	}).Then(func(theString string, theInt int) int {
@@ -410,23 +412,24 @@ func TestDeferredBasicChainWithOverlappingAndPromiseInput(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
-	OnInternalError(func(e error) { err = e })
+	Q.OnComposingError(func(e error) { err = e })
 
-	df := Defer(func(inp1 string, inp2 int, errorText string) (string, *Promised, error) {
+	df := Q.Defer(func(inp1 string, inp2 int, errorText string) (string, *Q.Promised, error) {
 
-		p := Promise(func() int {
+		p := Q.Promise(func() int {
+			time.Sleep(time.Second * 2)
 			return inp2
 		})
 
 		return inp1, p, errors.New(errorText)
 
-	}).Then(func(theString string, theInt int) int {
+	}).Then(func(theString string, theInt int) int { //Promised gets resolved to int argument.
 
 		assert.Equal(theString, "Hello Q", "String value doesn't match.")
 		assert.Equal(theInt, 10, "Int value doesn't match.")
 		return 5
 
-	}, func(err error) int {
+	}, func(err error) int { //error argument gets filled from last init Deferred return param.
 		assert.ErrorMatch(err, "This is an error!", "Error value doesn't match.")
 		return 10
 	})

@@ -14,7 +14,6 @@ type Promised struct {
 func makePromised() *Promised {
 	pr := new(Promised)
 	pr.rf = make(ResultFuture)
-
 	return pr
 }
 
@@ -55,7 +54,6 @@ func (p *Promised) Done() []interface{} {
 // Finally
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promised) Finally(init interface{}) {
-
 	if p.err != nil {
 		return
 	}
@@ -73,7 +71,6 @@ func (p *Promised) Finally(init interface{}) {
 // Promise
 ///////////////////////////////////////////////////////////////////////////////////////
 func Promise(init ...interface{}) *Promised {
-
 	pr := makePromised()
 	targets := toValueArray(init)
 	go pr.invokeTargets(targets, nil)
