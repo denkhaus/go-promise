@@ -18,16 +18,15 @@ type resultEnvelope struct {
 
 type ResultFuture chan resultEnvelope
 
-type invokable struct {
-	err    error
-	result []reflect.Value
-	rf     ResultFuture
+type Invokable struct {
+	err error
+	rf  ResultFuture
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // setError
 ///////////////////////////////////////////////////////////////////////////////////////
-func (e *invokable) setError(fnv interface{}, err error) {
+func (e *Invokable) setError(fnv interface{}, err error) {
 
 	if fnv == nil {
 		e.err = err
@@ -52,7 +51,7 @@ func (e *invokable) setError(fnv interface{}, err error) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // receive
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) sendError(fnv interface{}, idx int, err error) {
+func (i *Invokable) sendError(fnv interface{}, idx int, err error) {
 	// send dummy to avoid goroutine deadlock
 	i.send([]reflect.Value{}, idx, -1)
 	i.setError(fnv, err)
@@ -61,14 +60,14 @@ func (i *invokable) sendError(fnv interface{}, idx int, err error) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // send
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
+func (i *Invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
 	i.rf <- resultEnvelope{result: out, actIdx: actIdx, maxIdx: maxIdx}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // receiveWithIndex
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *invokable) receive() []reflect.Value {
+func (i *Invokable) receive() []reflect.Value {
 
 	nInputs := 0
 	wait4Data := true
@@ -97,14 +96,13 @@ func (i *invokable) receive() []reflect.Value {
 		data = append(data, arr...)
 	}
 
-	i.result = data
 	return data
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // invokeTargets
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Value) {
+func (p *Invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Value) {
 
 	maxIdx := len(targets)
 	for idx, target := range targets {

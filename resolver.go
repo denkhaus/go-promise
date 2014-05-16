@@ -75,7 +75,7 @@ func (r *resolver) Resolve(in []reflect.Value, onResolve OnResolveFunc) ([]refle
 	delta := 0
 	resInp := []reflect.Value{}
 	remInp := []reflect.Value{}
-	for actIdx, actInput := range in {
+	for actIdx, actInp := range in {
 		actInpType := actInp.Type()
 		targIdx := actIdx + delta
 
@@ -83,31 +83,31 @@ func (r *resolver) Resolve(in []reflect.Value, onResolve OnResolveFunc) ([]refle
 			break
 		}
 
-		if actInputType != r.InArgType(targIdx) &&
-			r.IsResolvable(actInputType) {
-			v := actInput.Interface().(*Promised)
+		if actInpType != r.InArgType(targIdx) &&
+			r.IsResolvable(actInpType) {
+			v := actInp.Interface().(*Invokable)
 			res := v.receive()
-			resInput = append(resInput, res...)
+			resInp = append(resInp, res...)
 			delta += len(res)
 		} else {
-			resInput = append(resInput, actInput)
+			resInp = append(resInp, actInp)
 		}
 		remInp = in[actIdx+1:]
 	}
 
 	//check again
-	if r.CanInvokeWithParams(resInput) {
-		onResolve(resInput)
-		return remInput, nil
+	if r.CanInvokeWithParams(resInp) {
+		onResolve(resInp)
+		return remInp, nil
 	} else {
 
 		//check we have enough func inputs
-		if len(resInput) < nFnInpts {
+		if len(resInp) < nFnInpts {
 			return nil, errors.New("Function argument count mismatch. Need more inputs.")
 		}
 
 		//check for argument errors
-		for idx, inVal := range resInput {
+		for idx, inVal := range resInp {
 			t := r.InArgType(idx)
 			if inVal.Type() != t {
 				return nil, fmt.Errorf("Function argument type mismatch. (%v -> %v)", inVal.Type(), t)

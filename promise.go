@@ -1,11 +1,11 @@
 package Q
 
 import (
-	"reflect"
+//	"reflect"
 )
 
 type Promised struct {
-	invokable
+	Invokable
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -14,7 +14,6 @@ type Promised struct {
 func makePromised() *Promised {
 	pr := new(Promised)
 	pr.rf = make(ResultFuture)
-	pr.result = []reflect.Value{}
 
 	return pr
 }

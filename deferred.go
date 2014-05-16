@@ -5,7 +5,7 @@ import (
 )
 
 type Deferred struct {
-	invokable
+	Invokable
 	targ []reflect.Value
 	prev *Deferred
 	next *Deferred
@@ -17,7 +17,6 @@ type Deferred struct {
 func makeDeferred(parent *Deferred, init []interface{}) *Deferred {
 	df := &Deferred{prev: parent}
 	df.targ = toValueArray(init)
-	df.result = []reflect.Value{}
 	df.rf = make(ResultFuture)
 
 	if parent != nil {
