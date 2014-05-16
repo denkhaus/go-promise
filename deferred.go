@@ -5,7 +5,7 @@ import (
 )
 
 type Deferred struct {
-	Invokable
+	invokable
 	targ []reflect.Value
 	prev *Deferred
 	next *Deferred

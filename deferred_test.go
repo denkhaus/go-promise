@@ -198,6 +198,38 @@ func TestDeferredBasicChainWithArgumentTypeFailing(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestDeferredBasicChainWithUnusedInputsErrorReporting
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestDeferredBasicChainWithUnusedInputsErrorReporting(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	OnInternalError(func(err error) {
+		assert.NotNil(err, "Error return value doesn't match.")
+		assert.Substring(err.Error(), "Unused inputs on target.", "Internal Error value doesn't match.")
+	})
+
+	executed := false
+	df := Defer(func() (string, int, error) {
+		return "Hello Q", 10, fmt.Errorf("This is an error!")
+
+	}).Then(func(theString string, theInt int) int {
+		executed = true
+		//this will never be executed
+		assert.Equal(theString, "Hello Q", "String value doesn't match.")
+		assert.Equal(theInt, 10, "Integer value doesn't match.")
+
+		return 5
+	})
+
+	df.Resolve()
+	res := df.Done()
+
+	assert.True(executed, "Then func was executed.")
+	assert.Length(res, 1, "Return value has invalid length.")
+	assert.Equal(res[0], 5, "Return value doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // TestDeferredBasicChainWithResolveByValueAndThenFunc
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestDeferredBasicChainWithResolveByValueAndThenFunc(t *testing.T) {

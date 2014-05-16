@@ -18,7 +18,11 @@ type resultEnvelope struct {
 
 type ResultFuture chan resultEnvelope
 
-type Invokable struct {
+type Invokable interface {
+	receive() []reflect.Value
+}
+
+type invokable struct {
 	err error
 	rf  ResultFuture
 }
@@ -26,7 +30,7 @@ type Invokable struct {
 ///////////////////////////////////////////////////////////////////////////////////////
 // setError
 ///////////////////////////////////////////////////////////////////////////////////////
-func (e *Invokable) setError(fnv interface{}, err error) {
+func (e *invokable) setError(fnv interface{}, err error) {
 
 	if fnv == nil {
 		e.err = err
@@ -51,7 +55,7 @@ func (e *Invokable) setError(fnv interface{}, err error) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // receive
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *Invokable) sendError(fnv interface{}, idx int, err error) {
+func (i *invokable) sendError(fnv interface{}, idx int, err error) {
 	// send dummy to avoid goroutine deadlock
 	i.send([]reflect.Value{}, idx, -1)
 	i.setError(fnv, err)
@@ -60,14 +64,14 @@ func (i *Invokable) sendError(fnv interface{}, idx int, err error) {
 ///////////////////////////////////////////////////////////////////////////////////////
 // send
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *Invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
+func (i *invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
 	i.rf <- resultEnvelope{result: out, actIdx: actIdx, maxIdx: maxIdx}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // receiveWithIndex
 ///////////////////////////////////////////////////////////////////////////////////////
-func (i *Invokable) receive() []reflect.Value {
+func (i *invokable) receive() []reflect.Value {
 
 	nInputs := 0
 	wait4Data := true
@@ -102,7 +106,7 @@ func (i *Invokable) receive() []reflect.Value {
 ///////////////////////////////////////////////////////////////////////////////////////
 // invokeTargets
 ///////////////////////////////////////////////////////////////////////////////////////
-func (p *Invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Value) {
+func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Value) {
 
 	maxIdx := len(targets)
 	for idx, target := range targets {
@@ -139,6 +143,7 @@ func (p *Invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 	}
 
 	if len(inputs) > 0 {
-		panic("invokeAll:: we got invoke inputs leftovers::" + fmt.Sprint(inputs))
+		err := fmt.Errorf("Unused inputs on target. %v\n", fmt.Sprint(inputs))
+		publishError(err)
 	}
 }

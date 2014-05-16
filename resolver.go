@@ -46,17 +46,6 @@ func (r *resolver) CanInvokeWithParams(in []reflect.Value) bool {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// IsResolvable
-///////////////////////////////////////////////////////////////////////////////////////
-func (r *resolver) IsResolvable(t reflect.Type) bool {
-
-	if t == DeferredPtrType || t == PromisedPtrType {
-		return true
-	}
-	return false
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // InvokeHelper
 ///////////////////////////////////////////////////////////////////////////////////////
 func Resolver(val reflect.Value) *resolver {
@@ -83,9 +72,8 @@ func (r *resolver) Resolve(in []reflect.Value, onResolve OnResolveFunc) ([]refle
 			break
 		}
 
-		if actInpType != r.InArgType(targIdx) &&
-			r.IsResolvable(actInpType) {
-			v := actInp.Interface().(*Invokable)
+		v, ok := actInp.Interface().(Invokable)
+		if actInpType != r.InArgType(targIdx) && ok {
 			res := v.receive()
 			resInp = append(resInp, res...)
 			delta += len(res)
