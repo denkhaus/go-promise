@@ -23,8 +23,9 @@ type Invokable interface {
 }
 
 type invokable struct {
-	err error
-	rf  ResultFuture
+	err      error
+	rf       ResultFuture
+	progress chan interface{}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -53,7 +54,7 @@ func (e *invokable) setError(fnv interface{}, err error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// receive
+// sendError
 ///////////////////////////////////////////////////////////////////////////////////////
 func (i *invokable) sendError(fnv interface{}, idx int, err error) {
 	// send dummy to avoid goroutine deadlock
@@ -69,7 +70,7 @@ func (i *invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// receiveWithIndex
+// receive
 ///////////////////////////////////////////////////////////////////////////////////////
 func (i *invokable) receive() []reflect.Value {
 
@@ -85,7 +86,7 @@ func (i *invokable) receive() []reflect.Value {
 		rvd[e.actIdx] = e.result
 		nInputs++
 
-		//in case of internal error in.maxIdx == -1 to end loop
+		//in case of composing error in.maxIdx == -1 to end loop
 		return nInputs < e.maxIdx && e.maxIdx != -1
 	}
 

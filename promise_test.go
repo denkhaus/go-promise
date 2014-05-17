@@ -78,6 +78,49 @@ func TestBasicChainWithOneThenFunc(t *testing.T) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+// TestBasicChainWithOneThenFuncAndProgressNotification
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+func TestBasicChainWithOneThenFuncAndProgressNotification(t *testing.T) {
+	assert := asserts.NewTestingAsserts(t, true)
+
+	var err error
+	Q.OnComposingError(func(e error) { err = e })
+
+	p := Q.Promise(func(progress Q.Progressor) (string, error) {
+
+		data := []int{1, 3, 5, 7, 9, 11}
+		for d := range data {
+			time.Sleep(time.MilliSecond * 150)
+			p.Notify(d)
+		}
+
+		return "Hello Q", fmt.Errorf("This is an error!")
+	})
+
+	res := p.Then(func(theString string, theError error) int {
+
+		data := []int{2, 4, 6, 8, 10, 12}
+		for d := range data {
+			time.Sleep(time.MilliSecond * 150)
+			progress.Notify(d)
+		}
+
+		assert.Equal(theString, "Hello Q", "String value doesn't match.")
+		assert.ErrorMatch(theError, "This is an error!", "Error value doesn't match.")
+		return 5
+
+	}).Done()
+
+	p.OnProgress(func(prog ...interface{}) {
+
+	})
+
+	assert.Nil(err, "Error return value doesn't match.")
+	assert.Length(res, 1, "Return value has invalid length.")
+	assert.Equal(res[0], 5, "Return value doesn't match.")
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 // TestBasicChainWithArgumentCountFailing
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 func TestBasicChainWithArgumentCountFailing(t *testing.T) {
