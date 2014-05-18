@@ -17,10 +17,13 @@ type Deferred struct {
 func makeDeferred(parent *Deferred, init []interface{}) *Deferred {
 	df := &Deferred{prev: parent}
 	df.targ = toValueArray(init)
-	df.rf = make(ResultFuture)
+	df.rf = make(resultFuture)
 
 	if parent != nil {
 		parent.next = df
+		df.pr = parent.pr
+	} else {
+		df.pr = &progressor{}
 	}
 
 	return df
@@ -105,6 +108,14 @@ func (d *Deferred) Done() []interface{} {
 ///////////////////////////////////////////////////////////////////////////////////////
 func (d *Deferred) Reject(err error) {
 
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// OnProgress
+///////////////////////////////////////////////////////////////////////////////////////
+func (d *Deferred) OnProgress(progressFunc ProgressFunc) *Deferred {
+
+	return d
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

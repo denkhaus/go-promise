@@ -7,6 +7,7 @@ import (
 )
 
 type resolver struct {
+	pr  reflect.Value
 	val reflect.Value
 	t   reflect.Type
 }
@@ -34,9 +35,10 @@ func (r *resolver) CanInvokeWithParams(in []reflect.Value) bool {
 ///////////////////////////////////////////////////////////////////////////////////////
 // InvokeHelper
 ///////////////////////////////////////////////////////////////////////////////////////
-func Resolver(val reflect.Value) *resolver {
-	r := &resolver{val: val}
-	r.t = val.Type()
+func Resolver(i *invokable, val reflect.Value) *resolver {
+	r := &resolver{val: val,
+		pr: reflect.ValueOf(i.pr),
+		t:  val.Type()}
 	return r
 }
 
@@ -45,29 +47,105 @@ func Resolver(val reflect.Value) *resolver {
 ///////////////////////////////////////////////////////////////////////////////////////
 func (r *resolver) Resolve(in []reflect.Value, onResolve OnResolveFunc) ([]reflect.Value, error) {
 
-	nFnInpts := r.InArgCount()
+	inIdx := 0
+	remIn := in
+	nOut := r.InArgCount()
+	f := r.pr.Interface()
+	resOut := []reflect.Value{}
 
-	delta := 0
-	resInp := []reflect.Value{}
-	remInp := []reflect.Value{}
-	for actIdx, actInp := range in {
-		actInpType := actInp.Type()
-		targIdx := actIdx + delta
+	for outIdx := 0; outIdx < nOut; outIdx++ {
+		outType := r.InArgType(outIdx)
+		if reflect.TypeOf(f).AssignableTo(outType) {
+			resOut = append(resOut, r.pr)
+			continue
+		}
 
-		if targIdx >= nFnInpts {
+		if inIdx >= nOut {
 			break
 		}
 
-		v, ok := actInp.Interface().(Invokable)
-		if actInpType != r.InArgType(targIdx) && ok {
-			res := v.receive()
-			resInp = append(resInp, res...)
-			delta += len(res)
+		inType := in[inIdx].Type()
+		if inType != outType {
+			if v, ok := in[inIdx].Interface().(Invokable); ok {
+				res := v.receive()
+				resOut = append(resOut, res...)
+				outIdx += len(res)
+			}
 		} else {
-			resInp = append(resInp, actInp)
+			resOut = append(resOut, in[inIdx])
 		}
-		remInp = in[actIdx+1:]
+		remInp = in[inIdx+1:]
+		inIdx++
 	}
+
+	//if len(in) < nFnInpts {
+
+	//	f := r.pr.Interface()
+
+	//	for i := 0; i < nFnInpts; i++ {
+	//		if reflect.TypeOf(f).AssignableTo(r.InArgType(i)) {
+	//			fmt.Print("ffffffffffffff")
+	//		}
+	//	}
+	//}
+
+	//delta := 0
+	//resInp := []reflect.Value{}
+	//remInp := []reflect.Value{}
+	//for actIdx, actInp := range in {
+	//	actInpType := actInp.Type()
+	//	targIdx := actIdx + delta
+
+	//	if targIdx >= nFnInpts {
+	//		break
+	//	}
+
+	//	actOutType := r.InArgType(targIdx)
+	//	resolved := false
+	//	if actInpType != actOutType {
+	//		fmt.Print(actOutType)
+	//		if v, ok := actInp.Interface().(Invokable); ok {
+	//			res := v.receive()
+	//			resInp = append(resInp, res...)
+	//			delta += len(res)
+	//			resolved = true
+	//		} else {
+	//			//fmt.Print(actOutType)
+	//			// if actOutType.Name() == "Q.Progressor" {
+	//			//resInp = append(resInp, r.pr)
+	//			fmt.Print("ffffffffffffffffffffffffffffffffffffffff")
+	//			//resolved = true
+	//			//delta++
+	//		}
+
+	//		fmt.Print(actOutType)
+
+	//	}
+
+	//	if !resolved {
+	//		resInp = append(resInp, actInp)
+	//	}
+
+	//	remInp = in[actIdx+1:]
+
+	//if actInpType != actOutType {
+	//	if v, ok := actInp.Interface().(Invokable); ok {
+	//		res := v.receive()
+	//		resInp = append(resInp, res...)
+	//		delta += len(res)
+
+	//	} /*else if actOutType == reflect.TypeOf(r.pr.Interface()) {
+	//		resInp = append(resInp, r.pr)
+	//		resInp = append(resInp, actInp)
+	//		print("ffffffffffffffffffffffffffffffffffffffff")
+	//		delta++
+	//	}*/
+
+	//} else {
+	//	resInp = append(resInp, actInp)
+	//}
+
+	//}
 
 	//check again
 	if r.CanInvokeWithParams(resInp) {

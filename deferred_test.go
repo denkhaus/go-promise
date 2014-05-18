@@ -1,14 +1,15 @@
 package Q_test
 
 import (
-	"bitbucket.org/mendsley/tcgl/asserts"
-	"errors"
-	"fmt"
-	"github.com/denkhaus/go-q"
-	"testing"
-	"time"
+//"errors"
+//"fmt"
+//"github.com/denkhaus/go-q"
+//"github.com/denkhaus/tcgl/asserts"
+//"testing"
+//"time"
 )
 
+/*
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // DeferredTestReturnValueIsNil
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -445,3 +446,4 @@ func TestDeferredBasicChainWithOverlappingAndPromiseInput(t *testing.T) {
 	assert.Equal(res[0], 5, "Return value1 doesn't match.")
 	assert.Equal(res[1], 10, "Return value2 doesn't match.")
 }
+*/

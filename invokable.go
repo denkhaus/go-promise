@@ -16,16 +16,16 @@ type resultEnvelope struct {
 	maxIdx int
 }
 
-type ResultFuture chan resultEnvelope
+type resultFuture chan resultEnvelope
 
 type Invokable interface {
 	receive() []reflect.Value
 }
 
 type invokable struct {
-	err      error
-	rf       ResultFuture
-	progress chan interface{}
+	err error
+	rf  resultFuture
+	pr  *progressor
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +115,7 @@ func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 
 		switch t.Kind() {
 		case reflect.Func:
-			r := Resolver(target)
+			r := Resolver(p, target)
 			nFnInpts := r.InArgCount()
 
 			var err error
