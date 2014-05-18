@@ -23,7 +23,7 @@ func makeDeferred(parent *Deferred, init []interface{}) *Deferred {
 		parent.next = df
 		df.pr = parent.pr
 	} else {
-		df.pr = &progressor{}
+		df.pr = NewProgressor()
 	}
 
 	return df
@@ -97,7 +97,7 @@ func (d *Deferred) Done() []interface{} {
 
 		return start
 	}
-
+	//TODO close progressor channel
 	theLast := last()
 	data := theLast.receive()
 	return fromValueArray(data)
@@ -107,14 +107,14 @@ func (d *Deferred) Done() []interface{} {
 // Reject
 ///////////////////////////////////////////////////////////////////////////////////////
 func (d *Deferred) Reject(err error) {
-
+	//TODO implement
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // OnProgress
 ///////////////////////////////////////////////////////////////////////////////////////
 func (d *Deferred) OnProgress(progressFunc ProgressFunc) *Deferred {
-
+	d.pr.onProgress(progressFunc)
 	return d
 }
 

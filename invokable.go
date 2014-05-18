@@ -57,7 +57,7 @@ func (e *invokable) setError(fnv interface{}, err error) {
 // sendError
 ///////////////////////////////////////////////////////////////////////////////////////
 func (i *invokable) sendError(fnv interface{}, idx int, err error) {
-	// send dummy to avoid goroutine deadlock
+	// send dummy to end receiver and avoid goroutine deadlock
 	i.send([]reflect.Value{}, idx, -1)
 	i.setError(fnv, err)
 }
@@ -75,7 +75,6 @@ func (i *invokable) send(out []reflect.Value, actIdx int, maxIdx int) {
 func (i *invokable) receive() []reflect.Value {
 
 	nInputs := 0
-	wait4Data := true
 	rvd := [][]reflect.Value{}
 
 	insert := func(e resultEnvelope) bool {
@@ -90,9 +89,7 @@ func (i *invokable) receive() []reflect.Value {
 		return nInputs < e.maxIdx && e.maxIdx != -1
 	}
 
-	for wait4Data {
-		in := <-i.rf
-		wait4Data = insert(in)
+	for insert(<-i.rf) {
 	}
 
 	//flatten received data
@@ -111,12 +108,10 @@ func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 
 	maxIdx := len(targets)
 	for idx, target := range targets {
-		t := target.Type()
-
-		switch t.Kind() {
+		switch t := target.Type(); t.Kind() {
 		case reflect.Func:
 			r := Resolver(p, target)
-			nFnInpts := r.InArgCount()
+			nOut := r.InArgCount()
 
 			var err error
 			if !r.CanInvokeWithParams(inputs) {
@@ -132,8 +127,8 @@ func (p *invokable) invokeTargets(targets []reflect.Value, inputs []reflect.Valu
 
 			} else {
 				// extract the inputs we need and invoke the func
-				actIn := inputs[:nFnInpts]
-				inputs = inputs[nFnInpts:]
+				actIn := inputs[:nOut]
+				inputs = inputs[nOut:]
 				p.send(target.Call(actIn), idx, maxIdx)
 			}
 

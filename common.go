@@ -5,7 +5,6 @@ import (
 	"sync"
 )
 
-type ProgressFunc func(data interface{})
 type ErrorFunc func(err error)
 
 var qSet struct {

@@ -20,7 +20,7 @@ func makePromised(parent *Promised) *Promised {
 		parent.next = pr
 		pr.pr = parent.pr
 	} else {
-		pr.pr = &progressor{}
+		pr.pr = NewProgressor()
 	}
 
 	pr.rf = make(resultFuture)
@@ -34,7 +34,7 @@ func (p *Promised) Then(init ...interface{}) *Promised {
 	newP := makePromised(p)
 
 	go func() {
-		// old error from prev promises
+		// old error from prev promises -> stop execution
 		if p.err != nil {
 			newP.sendError(nil, 0, p.err)
 			return
@@ -55,6 +55,8 @@ func (p *Promised) Then(init ...interface{}) *Promised {
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promised) Done() []interface{} {
 	out := p.receive()
+
+	//TODO close progressor channel
 	return fromValueArray(out)
 }
 
@@ -62,7 +64,7 @@ func (p *Promised) Done() []interface{} {
 // OnProgress
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promised) OnProgress(progressFunc ProgressFunc) *Promised {
-
+	p.pr.onProgress(progressFunc)
 	return p
 }
 
@@ -80,6 +82,7 @@ func (p *Promised) Finally(init interface{}) {
 	vals[0] = init
 
 	targets := toValueArray(vals)
+	//TODO close progressor
 	go p.invokeTargets(targets, in)
 }
 

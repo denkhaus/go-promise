@@ -7,14 +7,15 @@ import (
 )
 
 type resolver struct {
-	pr  reflect.Value
+	pr  Progressor
 	val reflect.Value
 	t   reflect.Type
 }
+
 type OnResolveFunc func([]reflect.Value)
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// CanInvokeWithParams
+// CanInvokeWithParams checks if func is invokable by given input arguments.
 ///////////////////////////////////////////////////////////////////////////////////////
 func (r *resolver) CanInvokeWithParams(in []reflect.Value) bool {
 
@@ -24,7 +25,7 @@ func (r *resolver) CanInvokeWithParams(in []reflect.Value) bool {
 	}
 
 	for i := 0; i < argCount; i++ {
-		if in[i].Type() != r.InArgType(i) {
+		if !in[i].Type().AssignableTo(r.InArgType(i)) {
 			return false
 		}
 	}
@@ -33,133 +34,63 @@ func (r *resolver) CanInvokeWithParams(in []reflect.Value) bool {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// InvokeHelper
+// Resolver initializes and returns a new Resolver object
 ///////////////////////////////////////////////////////////////////////////////////////
 func Resolver(i *invokable, val reflect.Value) *resolver {
-	r := &resolver{val: val,
-		pr: reflect.ValueOf(i.pr),
-		t:  val.Type()}
+	r := &resolver{val: val, pr: i.pr, t: val.Type()}
 	return r
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Resolve
+// Resolve() composes input variables, injects Q.Progressor if required, resolves Q.Deferred
+// an Q.Promised inputs and maps result to func arguments.
 ///////////////////////////////////////////////////////////////////////////////////////
 func (r *resolver) Resolve(in []reflect.Value, onResolve OnResolveFunc) ([]reflect.Value, error) {
 
-	inIdx := 0
-	remIn := in
-	nOut := r.InArgCount()
-	f := r.pr.Interface()
-	resOut := []reflect.Value{}
+	var (
+		inIdx int
+		remIn = in
+		nOut  = r.InArgCount()
+	)
 
+	resOut := []reflect.Value{}
 	for outIdx := 0; outIdx < nOut; outIdx++ {
 		outType := r.InArgType(outIdx)
-		if reflect.TypeOf(f).AssignableTo(outType) {
-			resOut = append(resOut, r.pr)
+		if reflect.TypeOf(r.pr).AssignableTo(outType) {
+			resOut = append(resOut, reflect.ValueOf(r.pr))
 			continue
 		}
 
-		if inIdx >= nOut {
+		if inIdx >= len(in) {
 			break
 		}
 
 		inType := in[inIdx].Type()
-		if inType != outType {
-			if v, ok := in[inIdx].Interface().(Invokable); ok {
-				res := v.receive()
-				resOut = append(resOut, res...)
-				outIdx += len(res)
-			}
+		v, ok := in[inIdx].Interface().(Invokable)
+		if !inType.AssignableTo(outType) && ok {
+			res := v.receive()
+			resOut = append(resOut, res...)
+			outIdx += len(res)
 		} else {
 			resOut = append(resOut, in[inIdx])
 		}
-		remInp = in[inIdx+1:]
+
 		inIdx++
+		remIn = in[inIdx:]
 	}
 
-	//if len(in) < nFnInpts {
-
-	//	f := r.pr.Interface()
-
-	//	for i := 0; i < nFnInpts; i++ {
-	//		if reflect.TypeOf(f).AssignableTo(r.InArgType(i)) {
-	//			fmt.Print("ffffffffffffff")
-	//		}
-	//	}
-	//}
-
-	//delta := 0
-	//resInp := []reflect.Value{}
-	//remInp := []reflect.Value{}
-	//for actIdx, actInp := range in {
-	//	actInpType := actInp.Type()
-	//	targIdx := actIdx + delta
-
-	//	if targIdx >= nFnInpts {
-	//		break
-	//	}
-
-	//	actOutType := r.InArgType(targIdx)
-	//	resolved := false
-	//	if actInpType != actOutType {
-	//		fmt.Print(actOutType)
-	//		if v, ok := actInp.Interface().(Invokable); ok {
-	//			res := v.receive()
-	//			resInp = append(resInp, res...)
-	//			delta += len(res)
-	//			resolved = true
-	//		} else {
-	//			//fmt.Print(actOutType)
-	//			// if actOutType.Name() == "Q.Progressor" {
-	//			//resInp = append(resInp, r.pr)
-	//			fmt.Print("ffffffffffffffffffffffffffffffffffffffff")
-	//			//resolved = true
-	//			//delta++
-	//		}
-
-	//		fmt.Print(actOutType)
-
-	//	}
-
-	//	if !resolved {
-	//		resInp = append(resInp, actInp)
-	//	}
-
-	//	remInp = in[actIdx+1:]
-
-	//if actInpType != actOutType {
-	//	if v, ok := actInp.Interface().(Invokable); ok {
-	//		res := v.receive()
-	//		resInp = append(resInp, res...)
-	//		delta += len(res)
-
-	//	} /*else if actOutType == reflect.TypeOf(r.pr.Interface()) {
-	//		resInp = append(resInp, r.pr)
-	//		resInp = append(resInp, actInp)
-	//		print("ffffffffffffffffffffffffffffffffffffffff")
-	//		delta++
-	//	}*/
-
-	//} else {
-	//	resInp = append(resInp, actInp)
-	//}
-
-	//}
-
-	//check again
-	if r.CanInvokeWithParams(resInp) {
-		onResolve(resInp)
-		return remInp, nil
+	if r.CanInvokeWithParams(resOut) {
+		onResolve(resOut)
+		return remIn, nil
 	} else {
 
-		//check we have enough func inputs
-		if len(resInp) < nFnInpts {
+		//do we have enough func inputs?
+		if len(resOut) < nOut {
 			return nil, errors.New("Function argument count mismatch. Need more inputs.")
 		}
 
 		//check for argument errors
-		for idx, inVal := range resInp {
+		for idx, inVal := range resOut {
 			t := r.InArgType(idx)
 			if inVal.Type() != t {
 				return nil, fmt.Errorf("Function argument type mismatch. (%v -> %v)", inVal.Type(), t)

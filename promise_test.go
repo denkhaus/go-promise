@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-/*
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // TestReturnValueIsNil
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,7 +78,6 @@ func TestBasicChainWithOneThenFunc(t *testing.T) {
 	assert.Equal(res[0], 5, "Return value doesn't match.")
 }
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 // TestBasicChainWithArgumentCountFailing
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,44 +128,57 @@ func TestBasicChainWithArgumentTypeFailing(t *testing.T) {
 
 	assert.Length(res, 0, "Return value has invalid length.")
 }
-*/
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-// TestBasicChainWithOneThenFuncAndProgressNotification
+// TestBasicChainWithOneThenFuncProgressNotificationAndArgumentOverlapping
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-func TestBasicChainWithOneThenFuncAndProgressNotification(t *testing.T) {
+func TestBasicChainWithOneThenFuncProgressNotificationAndArgumentOverlapping(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
 	var err error
+	var reportresult []interface{}
 	Q.OnComposingError(func(e error) { err = e })
 
 	res := Q.Promise(func(progress Q.Progressor) (string, error) {
 
-		data := []int{1, 3, 5, 7, 9, 11}
-		for d := range data {
-			time.Sleep(time.Millisecond * 150)
+		data := []int{1, 2, 3}
+		for _, d := range data {
+			time.Sleep(time.Millisecond * 50)
 			progress.Notify(d)
 		}
 
 		return "Hello Q", fmt.Errorf("This is an error!")
 
-	}).Then(func(progress Q.Progressor, theString string, theError error) int {
+		// Place progressor where you want, but respect remaining argument order
+	}).Then(func(progress Q.Progressor, theString string) int {
 
-		data := []int{2, 4, 6, 8, 10, 12}
-		for d := range data {
-			time.Sleep(time.Millisecond * 150)
+		data := []int{4, 5, 6}
+		for _, d := range data {
+			time.Sleep(time.Millisecond * 50)
 			progress.Notify(d)
 		}
 
 		assert.Equal(theString, "Hello Q", "String value doesn't match.")
-		assert.ErrorMatch(theError, "This is an error!", "Error value doesn't match.")
 		return 5
 
-	}).OnProgress(func(data interface{}) {
+		// Place progressor where you want, but respect remaining argument order
+	}, func(theError error, progress Q.Progressor) {
 
+		assert.ErrorMatch(theError, "This is an error!", "Error value doesn't match.")
+
+		data := []int{7, 8, 9}
+		for _, d := range data {
+			time.Sleep(time.Millisecond * 50)
+			progress.Notify(d)
+		}
+
+	}).OnProgress(func(data interface{}) {
+		//fmt.Printf("Report output >> %v\n", data)
+		reportresult = append(reportresult, data)
 	}).Done()
 
 	assert.Nil(err, "Error return value doesn't match.")
 	assert.Length(res, 1, "Return value has invalid length.")
+	assert.Length(reportresult, 9, "Reporting result has invalid length.")
 	assert.Equal(res[0], 5, "Return value doesn't match.")
 }
