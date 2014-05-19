@@ -97,9 +97,10 @@ func (d *Deferred) Done() []interface{} {
 
 		return start
 	}
-	//TODO close progressor channel
+
 	theLast := last()
 	data := theLast.receive()
+	d.pr.close()
 	return fromValueArray(data)
 }
 

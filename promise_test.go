@@ -84,6 +84,7 @@ func TestBasicChainWithOneThenFunc(t *testing.T) {
 func TestBasicChainWithArgumentCountFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	executed := false
 	Q.OnComposingError(func(err error) {
 		assert.NotNil(err, "Error return value doesn't match.")
 		assert.Substring(err.Error(), "Function argument count mismatch.", "Internal Error value doesn't match.")
@@ -92,7 +93,7 @@ func TestBasicChainWithArgumentCountFailing(t *testing.T) {
 	res := Q.Promise(func() string {
 		return "Hello Q"
 	}).Then(func(theString string, theError error) int {
-
+		executed = true
 		//this will never be executed
 		assert.Equal(theString, "Hello Q", "String value doesn't match.")
 		assert.ErrorMatch(theError, "This is an error!", "Error value doesn't match.")
@@ -100,6 +101,7 @@ func TestBasicChainWithArgumentCountFailing(t *testing.T) {
 
 	}).Done()
 
+	assert.False(executed, "Then func was executed.")
 	assert.Length(res, 0, "Return value has invalid length.")
 }
 
@@ -109,6 +111,7 @@ func TestBasicChainWithArgumentCountFailing(t *testing.T) {
 func TestBasicChainWithArgumentTypeFailing(t *testing.T) {
 	assert := asserts.NewTestingAsserts(t, true)
 
+	executed := false
 	Q.OnComposingError(func(err error) {
 		assert.NotNil(err, "Error return value doesn't match.")
 		assert.Substring(err.Error(), "Function argument type mismatch.", "Internal Error value doesn't match.")
@@ -118,7 +121,7 @@ func TestBasicChainWithArgumentTypeFailing(t *testing.T) {
 		return "Hello Q", fmt.Errorf("This is an error!")
 
 	}).Then(func(theError error, theString string) int {
-
+		executed = true
 		//this will never be executed
 		assert.Equal(theString, "Hello Q", "String value doesn't match.")
 		assert.ErrorMatch(theError, "This is an error!", "Error value doesn't match.")
@@ -126,6 +129,7 @@ func TestBasicChainWithArgumentTypeFailing(t *testing.T) {
 
 	}).Done()
 
+	assert.False(executed, "Then func was executed.")
 	assert.Length(res, 0, "Return value has invalid length.")
 }
 

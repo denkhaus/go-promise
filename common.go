@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+type ProgressFunc func(data interface{})
+type OnResolveFunc func([]reflect.Value)
 type ErrorFunc func(err error)
 
 var qSet struct {

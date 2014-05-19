@@ -55,8 +55,7 @@ func (p *Promised) Then(init ...interface{}) *Promised {
 ///////////////////////////////////////////////////////////////////////////////////////
 func (p *Promised) Done() []interface{} {
 	out := p.receive()
-
-	//TODO close progressor channel
+	p.pr.close()
 	return fromValueArray(out)
 }
 

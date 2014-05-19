@@ -226,7 +226,7 @@ func TestDeferredBasicChainWithUnusedInputsErrorReporting(t *testing.T) {
 	df.Resolve()
 	res := df.Done()
 
-	assert.True(executed, "Then func was executed.")
+	assert.True(executed, "Then func was not executed.")
 	assert.Length(res, 1, "Return value has invalid length.")
 	assert.Equal(res[0], 5, "Return value doesn't match.")
 }

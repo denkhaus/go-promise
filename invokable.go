@@ -47,7 +47,7 @@ func (e *invokable) setError(fnv interface{}, err error) {
 	funcName := funcNameParts[funcNamePartsIdx]
 	buffer := &bytes.Buffer{}
 
-	fmt.Fprintf(buffer, "Q internal error ------------------------------------------------------------------------\n")
+	fmt.Fprintf(buffer, "Q composing error ------------------------------------------------------------------------\n")
 	fmt.Fprintf(buffer, "%s: line %d -> %s '%s'\n\n", fileName, line, funcName, err.Error())
 
 	e.err = errors.New(buffer.String())
