@@ -2,5 +2,5 @@ box: pjvds/golang
 build:
   steps:
     - script:
-        name: echo install prerequisites
-        code: go get github.com/denkhaus/tcgl
+        name: install prerequisites
+        code: go get github.com/denkhaus/tcgl/asserts
