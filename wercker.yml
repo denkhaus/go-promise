@@ -1,4 +1,6 @@
 box: pjvds/golang
 build:
   steps:
-    - go get github.com/denkhaus/tcgl
+    - script:
+        name: echo install prerequisites
+        code: go get github.com/denkhaus/tcgl
