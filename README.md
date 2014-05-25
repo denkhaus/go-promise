@@ -1,3 +1,5 @@
+[![wercker status](https://app.wercker.com/status/c69b63555c5fa479187c888b15f3148e/s "wercker status")](https://app.wercker.com/project/bykey/c69b63555c5fa479187c888b15f3148e)
+
 go-promise
 ==========
 
