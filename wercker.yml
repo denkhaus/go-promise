@@ -1,1 +1,4 @@
 box: pjvds/golang
+build:
+  steps:
+    - go get github.com/denkhaus/tcgl
